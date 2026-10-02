@@ -10,6 +10,7 @@
 --       mic          mute/unmute your microphone (red when muted)
 --       audioOutput  choose where sound plays (headphones, speakers…)
 --       browser      open a new Google Chrome window
+--       lock         lock the screen
 --   * Hover a branch to see what it does.
 --   * Drag the button to move it; the spot is remembered. Branches
 --     always open toward the middle of the screen so they stay
@@ -19,7 +20,7 @@
 
 -- ---------- Settings you can change ----------
 local config = {
-  branches      = { "mic", "audioOutput", "browser" },
+  branches      = { "mic", "audioOutput", "browser", "lock" },
   browser       = "Google Chrome",     -- app name for the browser branch
   browserID     = "com.google.Chrome", -- its bundle ID (for the icon)
   size          = 52,   -- center button size (points)
@@ -122,6 +123,11 @@ local actions = {
     image = function() return hs.image.imageFromAppBundle(config.browserID) end,
     label = "New " .. config.browser .. " window",
     run   = newBrowserWindow,
+  },
+  lock = {
+    text  = "🔒",
+    label = "Lock screen",
+    run   = function() hs.caffeinate.lockScreen() end,
   },
 }
 

@@ -20,6 +20,7 @@ local scripts = {
   { name = "menubar-clock",           title = "Second clock",              default = true },
   { name = "clipboard-history",       title = "Clipboard history (⌃⌘V)",   default = true },
   { name = "caffeine",                title = "Keep Mac awake (caffeine)", default = false },
+  { name = "action-button",           title = "Floating action button",    default = false },
   { name = "floating-unread-buttons", title = "Floating unread buttons",   default = false },
 }
 

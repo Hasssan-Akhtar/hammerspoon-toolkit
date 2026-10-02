@@ -10,6 +10,7 @@ A small collection of macOS productivity scripts for [Hammerspoon](https://www.h
 | `menubar-clock` | A second clock with date for another time zone (default: New York) | ✅ |
 | `clipboard-history` | Press ⌃⌘V to search recently copied text and paste it | ✅ |
 | `caffeine` | A ☕ menu bar icon that keeps your Mac awake for a set time or until you turn it off | ❌ |
+| `action-button` | A floating button that opens like a flower into quick actions: mute mic, switch sound output, new Chrome window | ❌ |
 | `floating-unread-buttons` | Floating, draggable unread buttons for Slack and WhatsApp (an alternative to `menubar-unread`) | ❌ |
 
 Turn scripts on and off from the **🧰** menu bar icon (see [below](#turning-scripts-on-and-off)). All other settings live in a `config` table at the top of each script.
@@ -35,6 +36,12 @@ Turn scripts on and off from the **🧰** menu bar icon (see [below](#turning-sc
 - Click the menu bar icon to keep your Mac awake for 15 minutes, 1 hour, 2 hours, or until you turn it off. It shows ☕ and the time left while on, 💤 while off.
 - Stays on through Hammerspoon reloads. It doesn't change your Energy settings; macOS goes back to normal when it's turned off or Hammerspoon quits.
 - Set `keepDisplayOn = false` to let the screen turn off while the Mac stays awake (useful for downloads). Change the menu choices with `durations`.
+
+### action-button (off by default)
+- A round floating button that stays on top of your windows. Click it and branches fan out around it; click one to run it, or click anywhere else to close.
+- 🎙 mutes or unmutes your microphone (shown red with a slash while muted). 🎧 opens a list of sound outputs (headphones, speakers, monitor) to switch to. The Chrome branch opens a new Chrome window.
+- Hover a branch to see what it does. Drag the button to move it; the spot is remembered, and branches always open toward the middle of the screen.
+- Choose and order branches with `branches`, and use another browser with `browser` and `browserID`. Sizes and spacing are in the same `config` table.
 
 ### floating-unread-buttons (off by default)
 - Same unread check as `menubar-unread`, but shown as floating buttons in the bottom-right corner of the screen. Click to open the app, drag to move.

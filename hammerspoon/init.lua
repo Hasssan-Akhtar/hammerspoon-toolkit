@@ -16,6 +16,7 @@ local scripts = {
   { name = "menubar-unread",          title = "Unread counts in menu bar", default = true },
   { name = "menubar-clock",           title = "Second clock",              default = true },
   { name = "clipboard-history",       title = "Clipboard history (⌃⌘V)",   default = true },
+  { name = "caffeine",                title = "Keep Mac awake (caffeine)", default = false },
   { name = "floating-unread-buttons", title = "Floating unread buttons",   default = false },
 }
 

@@ -8,6 +8,9 @@
 -- The list below sets each script's menu name and whether it's on
 -- by default. Any other .lua file in scripts/ also shows up in the
 -- menu (off by default), so to add a script just drop it in there.
+--
+-- On small screens, the scripts' menu bar icons fold into the 🧰
+-- menu so macOS doesn't hide them (see lib/toolkitbar.lua).
 -- ===========================================================
 
 
@@ -22,12 +25,26 @@ local scripts = {
 
 local menuIcon = "🧰" -- text shown in the menu bar for the settings menu
 
+-- When any connected screen is narrower than this (in points), all
+-- the toolkit's menu bar icons fold into the 🧰 menu. A 14" MacBook
+-- screen is about 1512 wide. Set to 0 to never fold them.
+local compactBelowWidth = 1600
+
 
 -- ~/.hammerspoon/init.lua is a symlink into the repo, so follow it
--- to find the repo's scripts/ folder.
+-- to find the repo's scripts/ and lib/ folders.
 local here = hs.fs.pathToAbsolute(hs.configdir .. "/init.lua"):match("(.*)/")
 local scriptsDir = here .. "/scripts"
-package.path = scriptsDir .. "/?.lua;" .. package.path
+package.path = scriptsDir .. "/?.lua;" .. here .. "/lib/?.lua;" .. package.path
+
+local toolkitbar = require("toolkitbar")
+toolkitbar.setup({ compactBelowWidth = compactBelowWidth })
+
+-- Created before the scripts' icons so it sits to their right, where
+-- macOS hides it last. (Stored in a global so macOS doesn't clean it
+-- up. The name lets macOS remember where you Cmd+drag it.)
+toolkitMenu = hs.menubar.new(true, "toolkitMenu")
+toolkitMenu:setTitle(menuIcon)
 
 
 -- ---------- Find scripts that aren't in the list above ----------
@@ -73,9 +90,8 @@ end
 
 
 -- ---------- 🧰 settings menu ----------
-local function buildMenu()
-  local items = { { title = "Scripts", disabled = true } }
-
+local function scriptItems()
+  local items = {}
   for _, s in ipairs(scripts) do
     local title = s.title
     if failed[s.name] then title = title .. "  ⚠️ failed to load" end
@@ -90,6 +106,25 @@ local function buildMenu()
       end,
     })
   end
+  return items
+end
+
+local function buildMenu()
+  local items = {}
+
+  if toolkitbar.isCompact() then
+    -- Small screen: the scripts' icons live here instead
+    for _, row in ipairs(toolkitbar.compactRows()) do table.insert(items, row) end
+    table.insert(items, { title = "-" })
+    table.insert(items, { title = "Scripts", menu = scriptItems() })
+    table.insert(items, {
+      title = "Compact menu bar: a screen is under " .. compactBelowWidth .. " pt wide",
+      disabled = true,
+    })
+  else
+    table.insert(items, { title = "Scripts", disabled = true })
+    for _, item in ipairs(scriptItems()) do table.insert(items, item) end
+  end
 
   table.insert(items, { title = "-" })
   table.insert(items, { title = "Reload Hammerspoon", fn = hs.reload })
@@ -102,9 +137,13 @@ local function buildMenu()
   return items
 end
 
--- (Stored in a global so macOS doesn't clean it up. The name lets
--- macOS remember where you Cmd+drag it in the menu bar.)
-toolkitMenu = hs.menubar.new(true, "toolkitMenu")
-toolkitMenu:setTitle(menuIcon)
-toolkitMenu:setTooltip("Hammerspoon toolkit: turn scripts on/off")
+-- In compact mode, show unread counts etc. next to the icon
+local function updateTitle()
+  local badge = toolkitbar.isCompact() and toolkitbar.badgeText() or ""
+  toolkitMenu:setTitle(badge ~= "" and (menuIcon .. " " .. badge) or menuIcon)
+end
+
+toolkitMenu:setTooltip("Hammerspoon toolkit")
 toolkitMenu:setMenu(buildMenu)
+toolkitbar.onChange(updateTitle)
+updateTitle()

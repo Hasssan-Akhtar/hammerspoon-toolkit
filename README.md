@@ -72,13 +72,24 @@ The menu also has **Reload Hammerspoon**, **Open Console**, **Open scripts folde
 
 Your choices are saved in Hammerspoon's own preferences on your Mac, not in the repo. The defaults (and the names shown in the menu) are set in the `scripts` list at the top of `hammerspoon/init.lua`.
 
+## Small screens
+
+macOS hides menu bar icons that don't fit (for example behind a MacBook's notch) and doesn't tell apps which ones it hid. So when any connected screen is narrower than 1600 points, the toolkit's icons fold into the **🧰** menu instead:
+
+- 🧰 shows the total unread count and ☕ if caffeine is on, e.g. `🧰 5 ☕`.
+- Its menu lists Slack and WhatsApp (click to open), the second clock, and caffeine, each with its usual menu.
+
+It switches by itself when you plug in or unplug a display. Change the width (or set it to `0` to turn this off) with `compactBelowWidth` at the top of `hammerspoon/init.lua`. If 🧰 itself gets hidden, Cmd+drag it further right.
+
 ## Adding your own script
 
 1. Create `hammerspoon/scripts/my-script.lua`.
 2. Reload Hammerspoon. The script appears in the 🧰 menu, turned off; click it to turn it on.
 3. Optional: add it to the `scripts` list in `hammerspoon/init.lua` to give it a nicer menu name or turn it on by default.
 
-Tip: keep timers, watchers and hotkeys in global variables so Lua's garbage collector doesn't stop them.
+Tips:
+- Keep timers, watchers and hotkeys in global variables so Lua's garbage collector doesn't stop them.
+- For a menu bar icon, use `require("toolkitbar").new()` instead of `hs.menubar.new()` so it folds into 🧰 on small screens. It has the same methods (`setTitle`, `setIcon`, `setMenu`, …).
 
 ## License
 

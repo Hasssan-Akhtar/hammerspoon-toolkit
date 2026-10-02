@@ -60,18 +60,23 @@ end
 
 
 -- ---------- Menu bar item ----------
--- The name lets macOS remember where you Cmd+drag it.
-local item = hs.menubar.new(true, "caffeine")
+-- The name lets macOS remember where you Cmd+drag it. (On small
+-- screens it folds into the 🧰 menu instead.)
+local item = require("toolkitbar").new("caffeine")
 
 local function updateTitle()
   if not untilTime then
     item:setTitle(config.iconOff)
     item:setTooltip("Caffeine: off (Mac sleeps as normal)")
+    item:setCompactTitle("Caffeine: off")
+    item:setBadge(nil)
     return
   end
   local left = config.showTimeLeft and timeLeftText()
   item:setTitle(left and (config.iconOn .. " " .. left) or config.iconOn)
   item:setTooltip("Caffeine: keeping your Mac awake")
+  item:setCompactTitle(config.iconOn .. " Caffeine: on" .. (timeLeftText() and (", " .. timeLeftText() .. " left") or ""))
+  item:setBadge(config.iconOn)
 end
 
 -- minutes = number, or nil for "until turned off"

@@ -65,7 +65,8 @@ end
 -- drag the clock where you want it (as far right as macOS allows is
 -- just left of Apple's own icons); the name below makes macOS
 -- remember that spot across reloads.
-local item = hs.menubar.new(true, "menubarClock")
+-- (On small screens it folds into the 🧰 menu instead.)
+local item = require("toolkitbar").new("menubarClock")
 
 local function update()
   local time, _, _, _, short = readTime()

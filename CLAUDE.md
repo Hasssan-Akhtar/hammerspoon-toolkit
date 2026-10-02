@@ -5,6 +5,7 @@ Guidance for Claude Code (and other AI assistants) helping someone use, customiz
 ## Layout
 
 - `hammerspoon/init.lua`: the entry point. The user's `~/.hammerspoon/init.lua` should be a **symlink** to this file (see Setup in `README.md`). Never replace the symlink with a copy, or the repo and the live config drift apart. `init.lua` resolves the symlink to find `hammerspoon/scripts/`, adds it to `package.path`, and `require`s each enabled script inside `pcall` so one failure doesn't stop the rest.
+- `hammerspoon/lib/toolkitbar.lua`: shared helper, not a script (not auto-discovered). Scripts create menu bar items with `toolkitbar.new(autosaveName)`, which mirrors the `hs.menubar` methods the scripts use (`setTitle`, `setIcon`, `setTooltip`, `setMenu`, `setClickCallback`, `delete`) and adds `setCompactTitle` and `setBadge`. When any screen is narrower than `compactBelowWidth` (set in `init.lua`, default 1600 pt), items drop their real `hs.menubar` and appear as rows in the 🧰 menu instead; badges are summed (numbers) or listed (other text) on the 🧰 title. An `hs.screen.watcher` switches modes live, without a reload. This exists because macOS silently hides menu bar items that don't fit (notch, narrow displays) and apps can't detect it. Note `hs.menubar.new(true, nil)` errors, so only pass an autosave name when there is one.
 - `hammerspoon/scripts/<name>.lua`: one feature per file. Each has a `config` table at the top with the settings users are meant to change.
 - `README.md`: user-facing docs (per-script sections, setup, menu). Keep it in sync when scripts, settings, or setup change.
 - `LICENSE`: MIT, copyright "hammerspoon-toolkit contributors".
@@ -26,8 +27,9 @@ Guidance for Claude Code (and other AI assistants) helping someone use, customiz
 ## Adding a script
 
 1. Create `hammerspoon/scripts/<name>.lua` following the existing pattern: header comment explaining what it does (and doesn't do), a `config` table, then the code, then a "Start everything" section.
-2. Keep timers, watchers, hotkeys, menubar items, and chooser objects in **global variables** so Lua's garbage collector doesn't stop them. All scripts share one global namespace, so give globals a script-specific prefix (e.g. `clipboardWatcher`, `menubarClockTimer`).
-3. Add an entry to the `scripts` list in `init.lua` for a menu title and default, plus a section and table row in `README.md`.
+2. For a menu bar icon, use `require("toolkitbar").new()`, not `hs.menubar.new()`, so it folds into 🧰 on small screens. Set `setCompactTitle` if the menu bar title alone wouldn't make sense as a menu row, and `setBadge` for anything worth seeing at a glance.
+3. Keep timers, watchers, hotkeys, menubar items, and chooser objects in **global variables** so Lua's garbage collector doesn't stop them. All scripts share one global namespace, so give globals a script-specific prefix (e.g. `clipboardWatcher`, `menubarClockTimer`).
+4. Add an entry to the `scripts` list in `init.lua` for a menu title and default, plus a section and table row in `README.md`.
 
 ## Testing changes
 

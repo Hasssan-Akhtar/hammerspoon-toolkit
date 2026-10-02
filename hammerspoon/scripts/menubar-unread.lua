@@ -36,6 +36,9 @@ local config = {
 }
 
 
+-- Menu bar items that fold into the 🧰 menu on small screens
+local toolkitbar = require("toolkitbar")
+
 -- Keeps track of the menu bar items currently showing
 local items = {} -- appName -> { menubar = ..., label = ..., hasIcon = ... }
 local icons = {} -- appName -> icon image (cached)
@@ -86,7 +89,7 @@ local function update()
     if visible and not item then
       -- Create the menu bar item: colored app icon, click opens the app
       local icon = getIcon(app)
-      item = { menubar = hs.menubar.new(), label = false, hasIcon = icon ~= nil }
+      item = { menubar = toolkitbar.new(), label = false, hasIcon = icon ~= nil }
       if icon then item.menubar:setIcon(icon, false) end
       item.menubar:setClickCallback(function()
         hs.application.launchOrFocus(app.name)
@@ -107,6 +110,9 @@ local function update()
         text = app.name .. (label and (" " .. label) or "")
       end
       item.menubar:setTitle(text)
+      -- How it looks when folded into the 🧰 menu
+      item.menubar:setCompactTitle(app.name .. (label and ("  " .. label) or ""))
+      item.menubar:setBadge(label)
       item.label = label
     end
   end

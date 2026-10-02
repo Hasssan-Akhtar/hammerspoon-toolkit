@@ -2,8 +2,8 @@
 -- Second clock in the menu bar (New York time)
 --
 -- What it does:
---   * Shows the time in another city in the menu bar, e.g.
---     "NY 7:03 PM", updated at the start of every minute.
+--   * Shows the date and time in another city in the menu bar, e.g.
+--     "NY Thu Oct 1  7:03 PM", updated at the start of every minute.
 --   * Click it to see the full date, time zone, and how many hours
 --     ahead/behind it is compared to your Mac's time.
 --   * Daylight saving is handled automatically by macOS.

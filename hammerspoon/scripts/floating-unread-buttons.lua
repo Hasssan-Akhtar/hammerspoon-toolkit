@@ -229,5 +229,3 @@ end
 unreadTimer = hs.timer.doEvery(config.checkEvery, update)
 unreadScreenWatcher = hs.screen.watcher.new(layout):start()
 update()
-
-hs.alert.show("Unread buttons are running")

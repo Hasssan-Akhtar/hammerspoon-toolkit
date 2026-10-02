@@ -11,7 +11,7 @@ A small collection of macOS productivity scripts for [Hammerspoon](https://www.h
 | `clipboard-history` | Press ⌃⌘V to search recently copied text and paste it | ✅ |
 | `floating-unread-buttons` | Floating, draggable unread buttons for Slack and WhatsApp (an alternative to `menubar-unread`) | ❌ |
 
-All settings live in a `config` table at the top of each script.
+Turn scripts on and off from the **🧰** menu bar icon (see [below](#turning-scripts-on-and-off)). All other settings live in a `config` table at the top of each script.
 
 ### menubar-unread
 - Shows the Slack and WhatsApp icons in the menu bar, with the unread count next to them when there are new messages. Click an icon to open the app.
@@ -35,7 +35,7 @@ All settings live in a `config` table at the top of each script.
 
 ## Setup
 
-1. Install Hammerspoon, open it once, and grant **Accessibility** permission when asked:
+1. Install Hammerspoon, open it once, and grant **Accessibility** permission when asked (needed for hotkeys, pasting and dragging):
    ```sh
    brew install --cask hammerspoon
    ```
@@ -60,31 +60,19 @@ Hammerspoon always loads `~/.hammerspoon/init.lua`. That file is a symlink into 
 
 ## Turning scripts on and off
 
-`hammerspoon/init.lua` holds the list of scripts to load:
+Click the **🧰** icon in the menu bar. It lists every script with a ✓ next to the ones that are on. Click a script to switch it on or off, and Hammerspoon reloads automatically.
 
-```lua
-local scripts = {
-  -- "floating-unread-buttons",
-  "menubar-unread",
-  "menubar-clock",
-  "clipboard-history",
-}
-```
+The menu also has **Reload Hammerspoon**, **Open Console**, **Open scripts folder**, and **Reset to defaults**. A script that fails to load is marked ⚠️ (details in the Console); the other scripts keep working.
 
-Comment a line out with `--` to turn a script off. If one script has an error, the others still load, and the error appears in an alert and in the Hammerspoon Console.
+Your choices are saved in Hammerspoon's own preferences on your Mac, not in the repo. The defaults (and the names shown in the menu) are set in the `scripts` list at the top of `hammerspoon/init.lua`.
 
 ## Adding your own script
 
 1. Create `hammerspoon/scripts/my-script.lua`.
-2. Add `"my-script",` to the list in `hammerspoon/init.lua`.
-3. Reload Hammerspoon.
+2. Reload Hammerspoon. The script appears in the 🧰 menu, turned off; click it to turn it on.
+3. Optional: add it to the `scripts` list in `hammerspoon/init.lua` to give it a nicer menu name or turn it on by default.
 
 Tip: keep timers, watchers and hotkeys in global variables so Lua's garbage collector doesn't stop them.
-
-## Requirements
-
-- macOS with [Hammerspoon](https://www.hammerspoon.org/) installed
-- Accessibility permission for Hammerspoon (needed for hotkeys, pasting and dragging)
 
 ## License
 

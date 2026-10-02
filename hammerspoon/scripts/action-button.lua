@@ -32,12 +32,25 @@ local config = {
                         -- counts as a drag
 }
 
+-- Colors (macOS dark style)
+local colors = {
+  accent    = { red = 0.04, green = 0.52, blue = 1.00, alpha = 1 },    -- center button
+  branch    = { red = 0.11, green = 0.11, blue = 0.12, alpha = 0.94 }, -- branch buttons
+  hover     = { red = 0.20, green = 0.20, blue = 0.22, alpha = 0.97 },
+  on        = { red = 1.00, green = 0.27, blue = 0.23, alpha = 1 },    -- e.g. mic muted
+  border    = { white = 1, alpha = 0.12 },
+  glyph     = { white = 1, alpha = 0.95 },
+  shadow    = { white = 0, alpha = 0.45 },
+}
+
 
 local settingsKey = "actionButton.position"
 local position = hs.settings.get(settingsKey) -- top-left of the button
 
 local types = hs.eventtap.event.types
 local level = hs.canvas.windowLevels.floating
+local font  = ".AppleSystemUIFont" -- the macOS system font
+local pad   = 8 -- room around each circle for its shadow
 local isOpen = false
 local branches = {}  -- open branches: { canvas = ..., dx = ..., dy = ... }
 local label          -- the hover label
@@ -45,6 +58,71 @@ local anim           -- { timer = ..., done = ... } while animating
 local outsideTap     -- closes the flower on a click elsewhere
 local drag, dragTap  -- for dragging the center button
 local savedInputVolume
+
+
+-- ---------- Icons ----------
+-- Line icons drawn on a 24×24 grid (like most icon sets) and scaled
+-- to fit, so they stay sharp and look the same on every Mac.
+-- Arc angles: 0 = 12 o'clock, going clockwise.
+local function iconElements(name, size, ox, oy)
+  local k = size / 24
+  local function P(x, y) return { x = ox + x * k, y = oy + y * k } end
+  local function style(e)
+    e.action = e.action or "stroke"
+    e.strokeColor, e.fillColor = colors.glyph, colors.glyph
+    e.strokeWidth = 2 * k
+    e.strokeCapStyle, e.strokeJoinStyle = "round", "round"
+    return e
+  end
+  local function line(...)
+    local n, pts = { ... }, {}
+    for i = 1, #n, 2 do table.insert(pts, P(n[i], n[i + 1])) end
+    return style({ type = "segments", coordinates = pts })
+  end
+  local function box(x, y, w, h, r, action)
+    return style({
+      type = "rectangle", action = action,
+      frame = { x = ox + x * k, y = oy + y * k, w = w * k, h = h * k },
+      roundedRectRadii = { xRadius = r * k, yRadius = r * k },
+    })
+  end
+  local function arc(cx, cy, r, from, to)
+    return style({ type = "arc", center = P(cx, cy), radius = r * k,
+                   startAngle = from, endAngle = to, arcRadii = false })
+  end
+  local function dot(cx, cy, r)
+    return style({ type = "circle", action = "fill", center = P(cx, cy), radius = r * k })
+  end
+
+  local icons = {
+    mic = function() return {
+      box(9, 2, 6, 12, 3),
+      line(5, 10, 5, 11), arc(12, 11, 7, 90, 270), line(19, 10, 19, 11),
+      line(12, 18, 12, 22), line(8.5, 22, 15.5, 22),
+    } end,
+    micOff = function() return {
+      box(9, 2, 6, 12, 3),
+      line(5, 10, 5, 11), arc(12, 11, 7, 90, 270), line(19, 10, 19, 11),
+      line(12, 18, 12, 22), line(8.5, 22, 15.5, 22),
+      line(3, 3, 21, 21),
+    } end,
+    headphones = function() return {
+      line(3, 18, 3, 12), arc(12, 12, 9, 270, 450), line(21, 12, 21, 18),
+      box(2.5, 13.5, 5, 8, 2, "strokeAndFill"), box(16.5, 13.5, 5, 8, 2, "strokeAndFill"),
+    } end,
+    lock = function() return {
+      box(4, 11, 16, 11, 2.5),
+      line(8, 11, 8, 7), arc(12, 7, 4, 270, 450), line(16, 7, 16, 11),
+      dot(12, 16.5, 1.4),
+    } end,
+    globe = function() return {
+      style({ type = "circle", center = P(12, 12), radius = 10 * k }),
+      style({ type = "oval", frame = { x = ox + 8 * k, y = oy + 2 * k, w = 8 * k, h = 20 * k } }),
+      line(2, 12, 22, 12),
+    } end,
+  }
+  return icons[name]()
+end
 
 
 -- ---------- Branch: microphone ----------
@@ -68,7 +146,7 @@ local function toggleMic()
     d:setInputMuted(false)
     if d:inputVolume() == 0 then d:setInputVolume(savedInputVolume or 75) end
   end
-  hs.alert.show(mute and "🎙 Mic muted" or "🎙 Mic on")
+  hs.alert.show(mute and "Microphone muted" or "Microphone on")
 end
 
 
@@ -83,7 +161,7 @@ local function chooseOutput(point)
       checked = current ~= nil and d:uid() == current:uid(),
       fn = function()
         d:setDefaultOutputDevice()
-        hs.alert.show("🎧 " .. d:name())
+        hs.alert.show("Sound output: " .. d:name())
       end,
     })
   end
@@ -104,32 +182,35 @@ end
 
 
 -- ---------- All branches ----------
--- text: emoji shown on the button; image: used instead when found;
--- isOn: shows the button red with a slash (e.g. mic muted)
+-- icon: a name from the Icons section (or a function returning one);
+-- image: an app icon used instead when found; isOn: shows the button
+-- red (e.g. mic muted); label: shown on hover
 local actions = {
   mic = {
-    text  = "🎙",
+    icon  = function() return micMuted() and "micOff" or "mic" end,
     label = function() return micMuted() and "Unmute microphone" or "Mute microphone" end,
     isOn  = micMuted,
     run   = toggleMic,
   },
   audioOutput = {
-    text  = "🎧",
+    icon  = "headphones",
     label = "Sound output",
     run   = chooseOutput,
   },
   browser = {
-    text  = "🌐",
+    icon  = "globe",
     image = function() return hs.image.imageFromAppBundle(config.browserID) end,
     label = "New " .. config.browser .. " window",
     run   = newBrowserWindow,
   },
   lock = {
-    text  = "🔒",
+    icon  = "lock",
     label = "Lock screen",
     run   = function() hs.caffeinate.lockScreen() end,
   },
 }
+
+local function value(v) if type(v) == "function" then return v() end return v end
 
 
 -- ---------- Small helpers ----------
@@ -153,21 +234,42 @@ local function newCanvas(frame)
   return c
 end
 
+-- A round button with a soft shadow and a thin border, in a canvas
+-- with `pad` room around it for the shadow
+local function roundButton(c, diameter, fill)
+  local mid = pad + diameter / 2
+  c[1] = {
+    type = "circle", action = "fill", fillColor = fill,
+    center = { x = mid, y = mid }, radius = diameter / 2,
+    withShadow = true,
+    shadow = { blurRadius = 6, color = colors.shadow, offset = { h = -2, w = 0 } },
+  }
+  c[2] = {
+    type = "circle", action = "stroke", strokeColor = colors.border, strokeWidth = 1,
+    center = { x = mid, y = mid }, radius = diameter / 2 - 0.5,
+  }
+end
+
 
 -- ---------- Center button ----------
-local center = newCanvas({ x = 0, y = 0, w = config.size, h = config.size })
-center[1] = {
-  type = "circle", action = "fill",
-  fillColor = { red = 0.25, green = 0.45, blue = 0.95, alpha = 0.95 },
-  center = { x = config.size / 2, y = config.size / 2 },
-  radius = config.size / 2 - 2,
-  withShadow = true,
-}
-center[2] = {
-  type = "text", text = "+",
-  textSize = 30, textColor = { white = 1 }, textAlignment = "center",
-  frame = { x = 0, y = (config.size - 38) / 2, w = config.size, h = 38 },
-}
+local centerSide = config.size + 2 * pad
+local center = newCanvas({ x = 0, y = 0, w = centerSide, h = centerSide })
+roundButton(center, config.size, colors.accent)
+
+-- The "+" is two lines, rotated toward "×" as the flower opens
+local function drawPlus(degrees)
+  local mid, len = centerSide / 2, config.size * 0.2
+  local a = math.rad(degrees)
+  local cos, sin = math.cos(a) * len, math.sin(a) * len
+  for i, d in ipairs({ { cos, sin }, { -sin, cos } }) do
+    center[2 + i] = {
+      type = "segments", action = "stroke",
+      strokeColor = { white = 1 }, strokeWidth = 2.5, strokeCapStyle = "round",
+      coordinates = { { x = mid - d[1], y = mid - d[2] }, { x = mid + d[1], y = mid + d[2] } },
+    }
+  end
+end
+drawPlus(0)
 
 local function centerPoint()
   local f = center:frame()
@@ -182,45 +284,51 @@ end
 
 local function showLabel(canvas, text)
   hideLabel()
-  local size = hs.drawing.getTextDrawingSize(text, { size = 12 })
-  local w, h = math.ceil(size.w) + 16, 22
+  local size = hs.drawing.getTextDrawingSize(text, { font = font, size = 12 })
+  local w, h = math.ceil(size.w) + 20, 24
   local f = canvas:frame()
-  label = newCanvas({ x = f.x + f.w / 2 - w / 2, y = f.y - h - 4, w = w, h = h })
+  label = newCanvas({ x = f.x + f.w / 2 - w / 2, y = f.y + pad - h - 6, w = w, h = h })
   label[1] = {
-    type = "rectangle", action = "fill",
-    fillColor = { white = 0.1, alpha = 0.9 },
-    roundedRectRadii = { xRadius = 6, yRadius = 6 },
+    type = "rectangle", action = "fill", fillColor = colors.branch,
+    roundedRectRadii = { xRadius = 7, yRadius = 7 },
   }
   label[2] = {
+    type = "rectangle", action = "stroke", strokeColor = colors.border, strokeWidth = 1,
+    frame = { x = 0.5, y = 0.5, w = w - 1, h = h - 1 },
+    roundedRectRadii = { xRadius = 6.5, yRadius = 6.5 },
+  }
+  label[3] = {
     type = "text", text = text,
-    textSize = 12, textColor = { white = 1 }, textAlignment = "center",
-    frame = { x = 0, y = (h - 16) / 2, w = w, h = 16 },
+    textFont = font, textSize = 12, textColor = colors.glyph, textAlignment = "center",
+    frame = { x = 0, y = (h - 15) / 2, w = w, h = 16 },
   }
   label:show()
 end
 
 
 -- ---------- Open / close animation ----------
--- Moves the branches between the center (0) and their spot (1)
+-- Moves the branches between the center (0) and their spot (1),
+-- and turns the "+" into a "×"
 local function animate(list, opening, done)
   if anim then
     -- Finish the previous animation straight away
     anim.timer:stop()
     if anim.done then anim.done() end
   end
-  local cp, half = centerPoint(), config.branchSize / 2
-  local steps, k = 7, 0
+  local cp, half = centerPoint(), config.branchSize / 2 + pad
+  local steps, k = 9, 0
   local current = { done = done }
   anim = current
   current.timer = hs.timer.doEvery(0.016, function()
     k = k + 1
     local t = k / steps
-    local ease = 1 - (1 - t) ^ 2
+    local ease = 1 - (1 - t) ^ 3
     local p = opening and ease or (1 - ease)
     for _, b in ipairs(list) do
       b.canvas:topLeft({ x = cp.x + b.dx * p - half, y = cp.y + b.dy * p - half })
       b.canvas:alpha(p)
     end
+    drawPlus(45 * p)
     if k >= steps then
       current.timer:stop()
       if anim == current then anim = nil end
@@ -235,40 +343,30 @@ local closeFlower
 
 local function makeBranch(action)
   local s = config.branchSize
-  local c = newCanvas({ x = 0, y = 0, w = s, h = s })
-  local on = action.isOn and action.isOn()
+  local side = s + 2 * pad
+  local c = newCanvas({ x = 0, y = 0, w = side, h = side })
+  local fill = (action.isOn and action.isOn()) and colors.on or colors.branch
+  roundButton(c, s, fill)
 
-  c[1] = {
-    type = "circle", action = "fill",
-    fillColor = on and { red = 0.85, green = 0.2, blue = 0.2, alpha = 0.95 }
-                    or { white = 0.15, alpha = 0.92 },
-    center = { x = s / 2, y = s / 2 }, radius = s / 2 - 2,
-    withShadow = true,
-  }
   local image = action.image and action.image()
   if image then
-    c[2] = { type = "image", image = image, frame = { x = 8, y = 8, w = s - 16, h = s - 16 } }
+    local inset = s * 0.2
+    c[3] = { type = "image", image = image,
+             frame = { x = pad + inset, y = pad + inset, w = s - 2 * inset, h = s - 2 * inset } }
   else
-    c[2] = {
-      type = "text", text = action.text,
-      textSize = 20, textAlignment = "center",
-      frame = { x = 0, y = (s - 26) / 2, w = s, h = 26 },
-    }
-  end
-  if on then
-    -- Slash across the icon, e.g. mic muted
-    c[3] = {
-      type = "segments", action = "stroke",
-      strokeColor = { white = 1 }, strokeWidth = 2.5,
-      coordinates = { { x = 12, y = 12 }, { x = s - 12, y = s - 12 } },
-    }
+    local g = s * 0.45 -- icon size
+    for _, e in ipairs(iconElements(value(action.icon), g, pad + (s - g) / 2, pad + (s - g) / 2)) do
+      c[#c + 1] = e
+    end
   end
 
   c:canvasMouseEvents(true, true, true) -- down, up, enter/exit
   c:mouseCallback(function(_, message)
     if message == "mouseEnter" then
-      showLabel(c, type(action.label) == "function" and action.label() or action.label)
+      if fill ~= colors.on then c[1].fillColor = colors.hover end
+      showLabel(c, value(action.label))
     elseif message == "mouseExit" then
+      c[1].fillColor = fill
       hideLabel()
     elseif message == "mouseUp" then
       local f = c:frame()
@@ -283,7 +381,6 @@ end
 -- ---------- Open / close the flower ----------
 local function openFlower()
   isOpen = true
-  center[2].text = "×"
 
   -- Fan out toward the middle of the screen the button is on
   local cp = centerPoint()
@@ -295,11 +392,12 @@ local function openFlower()
   for _, id in ipairs(config.branches) do
     if actions[id] then table.insert(ids, id) end
   end
+  local half = config.branchSize / 2 + pad
   for i, id in ipairs(ids) do
     local angle = base + (i - (#ids + 1) / 2) * step
     local c = makeBranch(actions[id])
     c:alpha(0)
-    c:topLeft({ x = cp.x - config.branchSize / 2, y = cp.y - config.branchSize / 2 })
+    c:topLeft({ x = cp.x - half, y = cp.y - half })
     c:show()
     table.insert(branches, {
       canvas = c,
@@ -307,6 +405,7 @@ local function openFlower()
       dy = config.radius * math.sin(angle),
     })
   end
+  center:orderAbove() -- keep the center on top while branches slide out
   animate(branches, true)
 
   -- A click anywhere else closes the flower
@@ -324,7 +423,6 @@ end
 function closeFlower()
   if not isOpen then return end
   isOpen = false
-  center[2].text = "+"
   if outsideTap then outsideTap:stop(); outsideTap = nil end
   hideLabel()
   local closing = branches
@@ -384,12 +482,12 @@ local function place()
   closeFlower()
   local p = position
   -- Ignore a saved spot that's off-screen (e.g. monitor unplugged)
-  if p and not screenAt({ x = p.x + config.size / 2, y = p.y + config.size / 2 }) then
+  if p and not screenAt({ x = p.x + centerSide / 2, y = p.y + centerSide / 2 }) then
     p = nil
   end
   if not p then
     local f = hs.screen.primaryScreen():frame()
-    p = { x = f.x + f.w - config.size - config.margin, y = f.y + f.h * 0.6 }
+    p = { x = f.x + f.w - centerSide - config.margin, y = f.y + f.h * 0.6 }
   end
   center:topLeft(p)
 end
